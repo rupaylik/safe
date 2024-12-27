@@ -1,0 +1,75 @@
+include:
+  - project: 'Online_and_Web-Services_Group/JAVA_PROJ/common_ci-cd'
+    ref: master
+    file: 
+      - '/templates_k8s/.webinfo-gitlab-ci-k8s.yml'
+#      - '/templates_java/base_deploy_staging.yml'
+#      - '/templates_java/base_deploy_prod.yml'
+#      - '/templates_approve/base_approve.yml'  
+
+stages:
+  - build
+  - staging
+  - approve
+  - production
+
+variables:
+  POM_FILE: pom.xml
+  DOCKER: srv-artprod-001.main.velcom.by:9001
+
+### k8s >>>
+k8s_build:image:
+  stage: build
+  extends: .build_image_k8s
+  environment:
+    test
+  only:
+    - pushes
+    - web
+    - tags
+
+k8s_deploy:test:
+  stage: staging
+  extends: .deploy_image_k8s
+  environment:
+    test
+  needs: ["k8s_build:image"]
+#  only:
+#    - pushes
+#    - web
+#    - tags
+  rules: 
+    - if: $DEPLOYTO !~ /k8s/
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web" || $CI_COMMIT_TAG
+      allow_failure: true
+    - when: never 
+
+k8s_approve:prod:
+  stage: approve
+  needs: ["k8s_deploy:test"]
+  #only:
+  #  - tags
+  script:
+    - echo "Approved by $GITLAB_USER_LOGIN"
+  #when: manual
+  rules:
+    - if: $CI_COMMIT_TAG 
+      when: manual
+      allow_failure: false
+    - when: never
+
+k8s_deploy:prod:
+  stage: production
+  extends: .deploy_image_k8s
+  environment:
+    prod
+  needs: ["k8s_deploy:test","k8s_approve:prod"]
+  #only:
+  #  - tags
+  #when: manual  
+  rules: 
+    - if: $CI_COMMIT_TAG
+      allow_failure: true
+    - when: never
+### <<< k8s

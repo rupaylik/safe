@@ -1,0 +1,10 @@
+body {
+  color: rgba(0, 0, 0, 1);
+}
+
+.MuiDataGrid-cell.inventory_successful{
+  color: green;
+}
+.zebra-row-even{
+  background-color: whitesmoke;
+}
